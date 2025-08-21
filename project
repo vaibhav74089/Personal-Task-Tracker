@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Goal Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      color: white;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      width: 400px;
+      margin: 20px 0;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 15px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    input, button {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+    }
+
+    button {
+      background: #ff6b6b;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover { background: #e63946; }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    li {
+      background: rgba(255,255,255,0.15);
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .done { text-decoration: line-through; opacity: 0.7; }
+
+    .delete-btn {
+      background: #ff4757;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .delete-btn:hover { background: #e84118; }
+
+    canvas { margin-top: 15px; background: white; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 Daily Goal Tracker</h1>
+    <div class="input-group">
+      <input type="text" id="taskInput" placeholder="Enter a task...">
+      <button onclick="addTask()">Add Goal</button>
+    </div>
+    <ul id="taskList"></ul>
+    <button onclick="finishDay()">✅ Finish Day</button>
+  </div>
+
+  <div class="container">
+    <h2>📊 Progress History</h2>
+    <canvas id="progressChart"></canvas>
+    <p id="streakDisplay">🔥 Current Streak: 0 days</p>
+  </div>
+
+  <script>
+    const taskInput = document.getElementById("taskInput");
+    const taskList = document.getElementById("taskList");
+    const streakDisplay = document.getElementById("streakDisplay");
+
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    let history = JSON.parse(localStorage.getItem("history")) || {};
+    let streak = localStorage.getItem("streak") || 0;
+
+    renderTasks();
+    renderChart();
+
+    function addTask() {
+      const text = taskInput.value.trim();
+      if (text === "") return;
+      tasks.push({ text, done: false });
+      taskInput.value = "";
+      saveData();
+      renderTasks();
+    }
+
+    function toggleTask(index) {
+      tasks[index].done = !tasks[index].done;
+      saveData();
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      saveData();
+      renderTasks();
+    }
+
+    function renderTasks() {
+      taskList.innerHTML = "";
+      tasks.forEach((task, i) => {
+        const li = document.createElement("li");
+        const span = document.createElement("span");
+        span.textContent = task.text;
+        if (task.done) span.classList.add("done");
+        span.onclick = () => toggleTask(i);
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "X";
+        delBtn.className = "delete-btn";
+        delBtn.onclick = () => deleteTask(i);
+
+        li.appendChild(span);
+        li.appendChild(delBtn);
+        taskList.appendChild(li);
+      });
+    }
+
+    function finishDay() {
+      if (tasks.length === 0) return alert("No tasks to finish!");
+      const date = new Date().toLocaleDateString();
+      const completed = tasks.filter(t => t.done).length;
+      const total = tasks.length;
+      const percent = Math.round((completed / total) * 100);
+
+      history[date] = { completed, total, percent };
+      if (completed === total) streak++;
+      else streak = 0;
+
+      tasks = [];
+      saveData();
+      renderTasks();
+      renderChart();
+    }
+
+    function saveData() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      localStorage.setItem("history", JSON.stringify(history));
+      localStorage.setItem("streak", streak);
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById("progressChart").getContext("2d");
+      const labels = Object.keys(history);
+      const data = Object.values(history).map(h => h.percent);
+
+      if (window.progressChart) window.progressChart.destroy();
+      window.progressChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "% Goals Completed",
+            data,
+            backgroundColor: "#ffd700"
+          }]
+        },
+        options: { scales: { y: { beginAtZero: true, max: 100 } } }
+      });
+
+      streakDisplay.textContent = `🔥 Current Streak: ${streak} days`;
+    }
+  </script>
+</body>
+</html>
